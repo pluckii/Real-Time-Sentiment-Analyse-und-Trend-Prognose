@@ -83,3 +83,61 @@ resource "aws_lambda_event_source_mapping" "kinesis_trigger" {
   function_name     = aws_lambda_function.sentiment_lambda.arn
   starting_position = "LATEST"
 }
+
+resource "aws_iam_role" "sagemaker_role" {
+  name = "sagemaker-execution-role"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "sagemaker.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_policy" "sagemaker_s3_cloudwatch_policy" {
+  name        = "SageMakerS3CloudWatchPolicy"
+  description = "Allows SageMaker to access S3 and CloudWatch Logs"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::your-s3-bucket",
+        "arn:aws:s3:::your-s3-bucket/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "attach_s3_cloudwatch" {
+  role       = aws_iam_role.sagemaker_role.name
+  policy_arn = aws_iam_policy.sagemaker_s3_cloudwatch_policy.arn
+}
